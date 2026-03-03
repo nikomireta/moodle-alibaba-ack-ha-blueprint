@@ -1,0 +1,269 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-cluster
+  namespace: ${NAMESPACE}
+data:
+  redis.conf: |
+    cluster-enabled yes
+    cluster-node-timeout 15000
+    cluster-config-file /data/nodes.conf
+    appendonly yes
+    protected-mode no
+    dir /data
+    port 6379
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-probes
+  namespace: ${NAMESPACE}
+data:
+  readiness.sh: |
+    #!/bin/sh
+    ping_response="$(redis-cli -h localhost ping | head -n1 | awk '{print $1;}' | tr -d '\r')"
+    if [ "$ping_response" != "PONG" ] && [ "$ping_response" != "CLUSTERDOWN" ]; then
+      echo "$ping_response"
+      exit 1
+    fi
+  liveness.sh: |
+    #!/bin/sh
+    ping_response="$(redis-cli -h localhost ping | head -n1 | awk '{print $1;}' | tr -d '\r')"
+    if [ "$ping_response" != "PONG" ] && [ "$ping_response" != "LOADING" ] && [ "$ping_response" != "MASTERDOWN" ] && [ "$ping_response" != "CLUSTERDOWN" ]; then
+      echo "$ping_response"
+      exit 1
+    fi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-cluster-svc
+  namespace: ${NAMESPACE}
+spec:
+  clusterIP: None
+  ports:
+    - name: redis-port
+      port: 6379
+      protocol: TCP
+      targetPort: 6379
+  selector:
+    app: redis
+    appCluster: redis-cluster
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-cache-cluster-svc
+  namespace: ${NAMESPACE}
+spec:
+  clusterIP: None
+  ports:
+    - name: redis-port
+      port: 6379
+      protocol: TCP
+      targetPort: 6379
+  selector:
+    app: redis-cache
+    appCluster: redis-cache-cluster
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis
+  namespace: ${NAMESPACE}
+spec:
+  podManagementPolicy: Parallel
+  serviceName: redis-cluster-svc
+  replicas: 3
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+        appCluster: redis-cluster
+    spec:
+      terminationGracePeriodSeconds: 20
+      nodeSelector:
+        workload: redis
+      tolerations:
+        - key: workload-type
+          operator: Equal
+          value: redis
+          effect: NoSchedule
+      containers:
+        - name: redis
+          image: redis:6.2
+          command:
+            - redis-server
+          args:
+            - /conf/redis.conf
+            - --protected-mode
+            - "no"
+          ports:
+            - name: redis
+              containerPort: 6379
+              protocol: TCP
+            - name: cluster
+              containerPort: 16379
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+          startupProbe:
+            tcpSocket:
+              port: redis
+            periodSeconds: 5
+            failureThreshold: 30
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - /probes/liveness.sh
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - /probes/readiness.sh
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+          volumeMounts:
+            - name: conf
+              mountPath: /conf
+            - name: data
+              mountPath: /data
+            - name: probes
+              mountPath: /probes
+              readOnly: true
+      volumes:
+        - name: conf
+          configMap:
+            name: redis-cluster
+            defaultMode: 0755
+        - name: probes
+          configMap:
+            name: redis-probes
+            defaultMode: 0555
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: alicloud-disk-essd
+        resources:
+          requests:
+            storage: 20Gi
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-cache
+  namespace: ${NAMESPACE}
+spec:
+  podManagementPolicy: Parallel
+  serviceName: redis-cache-cluster-svc
+  replicas: 3
+  selector:
+    matchLabels:
+      app: redis-cache
+  template:
+    metadata:
+      labels:
+        app: redis-cache
+        appCluster: redis-cache-cluster
+    spec:
+      terminationGracePeriodSeconds: 20
+      nodeSelector:
+        workload: redis
+      tolerations:
+        - key: workload-type
+          operator: Equal
+          value: redis
+          effect: NoSchedule
+      containers:
+        - name: redis
+          image: redis:6.2
+          command:
+            - redis-server
+          args:
+            - /conf/redis.conf
+            - --protected-mode
+            - "no"
+          ports:
+            - name: redis
+              containerPort: 6379
+              protocol: TCP
+            - name: cluster
+              containerPort: 16379
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+          startupProbe:
+            tcpSocket:
+              port: redis
+            periodSeconds: 5
+            failureThreshold: 30
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - /probes/liveness.sh
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - /probes/readiness.sh
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+          volumeMounts:
+            - name: conf
+              mountPath: /conf
+            - name: data
+              mountPath: /data
+            - name: probes
+              mountPath: /probes
+              readOnly: true
+      volumes:
+        - name: conf
+          configMap:
+            name: redis-cluster
+            defaultMode: 0755
+        - name: probes
+          configMap:
+            name: redis-probes
+            defaultMode: 0555
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: alicloud-disk-essd
+        resources:
+          requests:
+            storage: 20Gi

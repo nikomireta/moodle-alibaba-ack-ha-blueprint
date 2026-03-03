@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: moodle-cron-deployment
+  namespace: ${NAMESPACE}
+  labels:
+    app: moodle-cron
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: moodle-cron
+  template:
+    metadata:
+      labels:
+        app: moodle-cron
+    spec:
+      imagePullSecrets:
+        - name: acr-regcred
+      nodeSelector:
+        workload: jobs
+      tolerations:
+        - key: workload-type
+          operator: Equal
+          value: jobs
+          effect: NoSchedule
+      containers:
+        - name: moodle-cron
+          image: ${MOODLE_IMAGE}
+          imagePullPolicy: IfNotPresent
+          command:
+            - /init_cron.sh
+          envFrom:
+            - secretRef:
+                name: moodle-config
+          volumeMounts:
+            - name: moodle-data
+              mountPath: /var/www/moodledata
+            - name: moodle-local-data
+              mountPath: /var/www/localdata
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+      volumes:
+        - name: moodle-data
+          persistentVolumeClaim:
+            claimName: moodle-data
+        - name: moodle-local-data
+          emptyDir:
+            sizeLimit: 1Gi
+            medium: Memory

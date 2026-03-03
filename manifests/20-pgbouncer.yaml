@@ -1,0 +1,167 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pgbouncer-deployment
+  namespace: ${NAMESPACE}
+  labels:
+    app: pgbouncer
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: pgbouncer
+  template:
+    metadata:
+      labels:
+        app: pgbouncer
+    spec:
+      imagePullSecrets:
+        - name: acr-regcred
+      nodeSelector:
+        workload: pgbouncer
+      tolerations:
+        - key: workload-type
+          operator: Equal
+          value: pgbouncer
+          effect: NoSchedule
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: pgbouncer
+                topologyKey: kubernetes.io/hostname
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: pgbouncer
+      containers:
+        - name: pgbouncer
+          image: ${PGBOUNCER_IMAGE}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5432
+          envFrom:
+            - secretRef:
+                name: pgbouncer-config
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          livenessProbe:
+            tcpSocket:
+              port: 5432
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            tcpSocket:
+              port: 5432
+            initialDelaySeconds: 10
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pgbouncer-svc
+  namespace: ${NAMESPACE}
+spec:
+  sessionAffinity: ClientIP
+  selector:
+    app: pgbouncer
+  ports:
+    - name: pgbouncer
+      protocol: TCP
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pgbouncer-read-deployment
+  namespace: ${NAMESPACE}
+  labels:
+    app: pgbouncer-read
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: pgbouncer-read
+  template:
+    metadata:
+      labels:
+        app: pgbouncer-read
+    spec:
+      imagePullSecrets:
+        - name: acr-regcred
+      nodeSelector:
+        workload: pgbouncer
+      tolerations:
+        - key: workload-type
+          operator: Equal
+          value: pgbouncer
+          effect: NoSchedule
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: pgbouncer-read
+                topologyKey: kubernetes.io/hostname
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: pgbouncer-read
+      containers:
+        - name: pgbouncer-read
+          image: ${PGBOUNCER_IMAGE}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5432
+          envFrom:
+            - secretRef:
+                name: pgbouncer-config-read-replica
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          livenessProbe:
+            tcpSocket:
+              port: 5432
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            tcpSocket:
+              port: 5432
+            initialDelaySeconds: 10
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pgbouncer-read-svc
+  namespace: ${NAMESPACE}
+spec:
+  sessionAffinity: ClientIP
+  selector:
+    app: pgbouncer-read
+  ports:
+    - name: pgbouncer-read
+      protocol: TCP
+      port: 5432
+      targetPort: 5432

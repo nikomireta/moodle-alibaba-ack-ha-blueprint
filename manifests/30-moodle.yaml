@@ -1,0 +1,98 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: moodle-deployment
+  namespace: ${NAMESPACE}
+  labels:
+    app: moodle
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: moodle
+  template:
+    metadata:
+      labels:
+        app: moodle
+    spec:
+      imagePullSecrets:
+        - name: acr-regcred
+      nodeSelector:
+        workload: app
+      tolerations:
+        - key: workload-type
+          operator: Equal
+          value: app
+          effect: NoSchedule
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: moodle
+                topologyKey: kubernetes.io/hostname
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: moodle
+      containers:
+        - name: moodle
+          image: ${MOODLE_IMAGE}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+          envFrom:
+            - secretRef:
+                name: moodle-config
+          volumeMounts:
+            - name: moodle-data
+              mountPath: /var/www/moodledata
+            - name: moodle-local-data
+              mountPath: /var/www/localdata
+          resources:
+            requests:
+              cpu: 1000m
+              memory: 2Gi
+            limits:
+              cpu: 3000m
+              memory: 4Gi
+          readinessProbe:
+            tcpSocket:
+              port: 80
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            tcpSocket:
+              port: 80
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            timeoutSeconds: 3
+      volumes:
+        - name: moodle-data
+          persistentVolumeClaim:
+            claimName: moodle-data
+        - name: moodle-local-data
+          emptyDir:
+            sizeLimit: 1Gi
+            medium: Memory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: moodle-svc
+  namespace: ${NAMESPACE}
+spec:
+  type: LoadBalancer
+  selector:
+    app: moodle
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 80

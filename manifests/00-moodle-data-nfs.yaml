@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: moodle-data
+spec:
+  capacity:
+    storage: 100Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: alibaba-nas-static
+  mountOptions:
+    - vers=3
+    - nolock
+    - proto=tcp
+  nfs:
+    server: ${NAS_MOUNT_TARGET_DOMAIN}
+    path: /
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: moodle-data
+  namespace: ${NAMESPACE}
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: alibaba-nas-static
+  volumeName: moodle-data
+  resources:
+    requests:
+      storage: 100Gi
