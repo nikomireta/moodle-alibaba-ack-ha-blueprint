@@ -76,7 +76,7 @@ metadata:
 spec:
   podManagementPolicy: Parallel
   serviceName: redis-cluster-svc
-  replicas: 3
+  replicas: ${REDIS_SESSION_REPLICAS}
   selector:
     matchLabels:
       app: redis
@@ -112,11 +112,11 @@ spec:
               protocol: TCP
           resources:
             requests:
-              cpu: 500m
-              memory: 1Gi
+              cpu: ${REDIS_CPU_REQUEST}
+              memory: ${REDIS_MEM_REQUEST}
             limits:
-              cpu: 1000m
-              memory: 2Gi
+              cpu: ${REDIS_CPU_LIMIT}
+              memory: ${REDIS_MEM_LIMIT}
           startupProbe:
             tcpSocket:
               port: redis
@@ -166,7 +166,7 @@ spec:
         storageClassName: alicloud-disk-essd
         resources:
           requests:
-            storage: 20Gi
+            storage: ${REDIS_STORAGE_REQUEST}
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -176,7 +176,7 @@ metadata:
 spec:
   podManagementPolicy: Parallel
   serviceName: redis-cache-cluster-svc
-  replicas: 3
+  replicas: ${REDIS_CACHE_REPLICAS}
   selector:
     matchLabels:
       app: redis-cache
@@ -212,11 +212,11 @@ spec:
               protocol: TCP
           resources:
             requests:
-              cpu: 500m
-              memory: 1Gi
+              cpu: ${REDIS_CPU_REQUEST}
+              memory: ${REDIS_MEM_REQUEST}
             limits:
-              cpu: 1000m
-              memory: 2Gi
+              cpu: ${REDIS_CPU_LIMIT}
+              memory: ${REDIS_MEM_LIMIT}
           startupProbe:
             tcpSocket:
               port: redis
@@ -266,4 +266,4 @@ spec:
         storageClassName: alicloud-disk-essd
         resources:
           requests:
-            storage: 20Gi
+            storage: ${REDIS_STORAGE_REQUEST}

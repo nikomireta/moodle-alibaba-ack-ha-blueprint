@@ -9,6 +9,7 @@ These manifests deploy the runtime layer on ACK with no wrapper apply script.
 - PodDisruptionBudgets for Moodle and PgBouncer workloads
 - Moodle web deployment and LoadBalancer service
 - Moodle cron deployment
+- Single runtime tuning source: `runtime.env`
 
 ## Prerequisites
 
@@ -19,17 +20,21 @@ export REGISTRY_RUNTIME_ENDPOINT="$(terraform -chdir=alibaba2/infra output -raw 
 export IMAGE_TAG=v0.1
 export MOODLE_IMAGE=${REGISTRY_RUNTIME_ENDPOINT}/moodle-high-scale/moodle:${IMAGE_TAG}
 export PGBOUNCER_IMAGE=${REGISTRY_RUNTIME_ENDPOINT}/moodle-high-scale/pgbouncer:${IMAGE_TAG}
+
+set -a
+source alibaba2/manifests/runtime.env
+set +a
 ```
 
 ## Apply Order
 
 ```bash
 envsubst '${NAMESPACE} ${NAS_MOUNT_TARGET_DOMAIN}' < alibaba2/manifests/00-moodle-data-nfs.yaml | kubectl apply -f -
-envsubst '${NAMESPACE}' < alibaba2/manifests/10-redis-cluster.yaml | kubectl apply -f -
-envsubst '${NAMESPACE} ${PGBOUNCER_IMAGE}' < alibaba2/manifests/20-pgbouncer.yaml | kubectl apply -f -
+envsubst '${NAMESPACE} ${REDIS_SESSION_REPLICAS} ${REDIS_CACHE_REPLICAS} ${REDIS_CPU_REQUEST} ${REDIS_MEM_REQUEST} ${REDIS_CPU_LIMIT} ${REDIS_MEM_LIMIT} ${REDIS_STORAGE_REQUEST}' < alibaba2/manifests/10-redis-cluster.yaml | kubectl apply -f -
+envsubst '${NAMESPACE} ${PGBOUNCER_IMAGE} ${PGBOUNCER_RW_REPLICAS} ${PGBOUNCER_RO_REPLICAS} ${PGBOUNCER_CPU_REQUEST} ${PGBOUNCER_MEM_REQUEST} ${PGBOUNCER_CPU_LIMIT} ${PGBOUNCER_MEM_LIMIT}' < alibaba2/manifests/20-pgbouncer.yaml | kubectl apply -f -
 envsubst '${NAMESPACE}' < alibaba2/manifests/21-pdb.yaml | kubectl apply -f -
-envsubst '${NAMESPACE} ${MOODLE_IMAGE}' < alibaba2/manifests/30-moodle.yaml | kubectl apply -f -
-envsubst '${NAMESPACE} ${MOODLE_IMAGE}' < alibaba2/manifests/40-moodle-cron.yaml | kubectl apply -f -
+envsubst '${NAMESPACE} ${MOODLE_IMAGE} ${MOODLE_WEB_REPLICAS} ${MOODLE_WEB_CPU_REQUEST} ${MOODLE_WEB_MEM_REQUEST} ${MOODLE_WEB_CPU_LIMIT} ${MOODLE_WEB_MEM_LIMIT}' < alibaba2/manifests/30-moodle.yaml | kubectl apply -f -
+envsubst '${NAMESPACE} ${MOODLE_IMAGE} ${MOODLE_CRON_REPLICAS} ${MOODLE_CRON_CPU_REQUEST} ${MOODLE_CRON_MEM_REQUEST} ${MOODLE_CRON_CPU_LIMIT} ${MOODLE_CRON_MEM_LIMIT}' < alibaba2/manifests/40-moodle-cron.yaml | kubectl apply -f -
 ```
 
 ## Redis Initialization
@@ -41,8 +46,8 @@ envsubst '${NAMESPACE} ${MOODLE_IMAGE}' < alibaba2/manifests/40-moodle-cron.yaml
 ## Moodle DB Install (Azure-style)
 
 ```bash
-kubectl -n moodle exec -it deployment/moodle-deployment -- /bin/bash
-php /var/www/html/admin/cli/install_database.php --adminuser=admin_user --adminpass=admin_pass --agree-license
+kubectl -n moodle exec deployment/moodle-deployment -- \
+  php /var/www/html/admin/cli/install_database.php --adminuser=admin_user --adminpass=admin_pass --agree-license
 ```
 
 ## Quick Verification

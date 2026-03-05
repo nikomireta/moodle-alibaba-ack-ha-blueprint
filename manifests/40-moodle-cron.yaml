@@ -6,7 +6,7 @@ metadata:
   labels:
     app: moodle-cron
 spec:
-  replicas: 1
+  replicas: ${MOODLE_CRON_REPLICAS}
   selector:
     matchLabels:
       app: moodle-cron
@@ -40,11 +40,11 @@ spec:
               mountPath: /var/www/localdata
           resources:
             requests:
-              cpu: 500m
-              memory: 1Gi
+              cpu: ${MOODLE_CRON_CPU_REQUEST}
+              memory: ${MOODLE_CRON_MEM_REQUEST}
             limits:
-              cpu: 1000m
-              memory: 2Gi
+              cpu: ${MOODLE_CRON_CPU_LIMIT}
+              memory: ${MOODLE_CRON_MEM_LIMIT}
       volumes:
         - name: moodle-data
           persistentVolumeClaim:

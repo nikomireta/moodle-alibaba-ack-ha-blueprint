@@ -1,10 +1,7 @@
 locals {
-  rds_category_effective = coalesce(try(lookup(local.settings, "rds_category", null), null), var.rds_category)
+  rds_category_effective = var.rds_category
 
-  rds_instance_charge_type_raw = coalesce(
-    try(lookup(local.settings, "rds_instance_charge_type", null), null),
-    var.rds_instance_charge_type
-  )
+  rds_instance_charge_type_raw = var.rds_instance_charge_type
 
   rds_instance_charge_type_data = lower(local.rds_instance_charge_type_raw) == "postpaid" ? "PostPaid" : (
     lower(local.rds_instance_charge_type_raw) == "prepaid" ? "PrePaid" : local.rds_instance_charge_type_raw
@@ -14,27 +11,15 @@ locals {
     lower(local.rds_instance_charge_type_raw) == "prepaid" ? "Prepaid" : local.rds_instance_charge_type_raw
   )
 
-  rds_db_instance_storage_type_effective = coalesce(
-    try(lookup(local.settings, "rds_db_instance_storage_type", null), null),
-    var.rds_db_instance_storage_type
-  )
+  rds_db_instance_storage_type_effective = var.rds_db_instance_storage_type
 
-  rds_instance_storage_gb_raw = coalesce(
-    try(lookup(local.settings, "rds_instance_storage_gb", null), null),
-    var.rds_instance_storage_gb,
-    32
-  )
+  rds_instance_storage_gb_raw = coalesce(var.rds_instance_storage_gb, 512)
 
   rds_instance_storage_gb = max(5, ceil(local.rds_instance_storage_gb_raw / 5) * 5)
 
-  rds_readonly_enabled = coalesce(
-    var.rds_readonly_enabled,
-    try(lookup(local.settings, "rds_readonly_enabled", null), null),
-    false
-  )
+  rds_readonly_enabled = coalesce(var.rds_readonly_enabled, true)
 
   rds_readonly_instance_storage_gb_raw = coalesce(
-    try(lookup(local.settings, "rds_readonly_instance_storage_gb", null), null),
     var.rds_readonly_instance_storage_gb,
     local.rds_instance_storage_gb
   )

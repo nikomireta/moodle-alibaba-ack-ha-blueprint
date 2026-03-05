@@ -73,6 +73,13 @@ RUN wget -q https://codeload.github.com/catalyst/moodle-tool_heartbeat/zip/refs/
     mv moodle-tool_heartbeat-MOODLE_39_STABLE/* /var/www/html/admin/tool/heartbeat/ && \
     rm -rf heartbeat.zip moodle-tool_heartbeat-MOODLE_39_STABLE
 
+# report_benchmark (pinned release v1.5.4)
+RUN wget -q https://codeload.github.com/mikasmart/moodle-report_benchmark/zip/refs/tags/v1.5.4 -O benchmark.zip && \
+    unzip -q benchmark.zip && \
+    mkdir -p /var/www/html/report/benchmark && \
+    mv moodle-report_benchmark-1.5.4/* /var/www/html/report/benchmark/ && \
+    rm -rf benchmark.zip moodle-report_benchmark-1.5.4
+
 RUN mkdir -p /var/www/localdata/cache /var/www/moodledata && \
     chown -R www-data:www-data /var/www/localdata /var/www/moodledata /var/www/html
 

@@ -6,7 +6,7 @@ metadata:
   labels:
     app: moodle
 spec:
-  replicas: 2
+  replicas: ${MOODLE_WEB_REPLICAS}
   selector:
     matchLabels:
       app: moodle
@@ -56,11 +56,11 @@ spec:
               mountPath: /var/www/localdata
           resources:
             requests:
-              cpu: 1000m
-              memory: 2Gi
+              cpu: ${MOODLE_WEB_CPU_REQUEST}
+              memory: ${MOODLE_WEB_MEM_REQUEST}
             limits:
-              cpu: 3000m
-              memory: 4Gi
+              cpu: ${MOODLE_WEB_CPU_LIMIT}
+              memory: ${MOODLE_WEB_MEM_LIMIT}
           readinessProbe:
             tcpSocket:
               port: 80

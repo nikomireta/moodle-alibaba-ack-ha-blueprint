@@ -1,8 +1,12 @@
-# Core settings
-project_name        = "moodle-high-scale"
-region              = "ap-southeast-1"
-moodle_environment  = "development"
-availability_zone_id = null
+# Credentials are read from environment variables:
+#   export ALICLOUD_ACCESS_KEY="<access-key>"
+#   export ALICLOUD_SECRET_KEY="<secret-key>"
+
+# Core settings (single 150k-design baseline)
+project_name          = "moodle-high-scale"
+region                = "ap-southeast-1"
+moodle_environment    = "production"
+availability_zone_id  = null
 rds_availability_zone_id = null
 
 common_tags = {
@@ -10,79 +14,71 @@ common_tags = {
   cost_center = "moodle"
 }
 
-# Optional explicit website URL.
-# Set empty string ("") for bootstrap auto-host mode, or set fixed domain/IP explicitly.
-moodle_www_root  = ""
-moodle_ssl_proxy = "false"
+# Bootstrap access mode (IP/LB first).
+moodle_www_root               = ""
+moodle_ssl_proxy              = "false"
 moodle_muc_autoconfig_enabled = true
-moodle_muc_profile            = "azure_parity_core"
 
-# Optional: if your account cannot create CR EE subscription now, keep disabled for first run
-cr_enabled = false
-cr_link_ack_vpc_endpoint             = true
+# Registry for build/push/pull workflow.
+cr_enabled                             = true
+# Optional reuse:
+# cr_existing_instance_id              = "cri-xxxxxxxx"
+cr_link_ack_vpc_endpoint               = true
 cr_vpc_endpoint_enable_privatezone_dns = true
-cr_registry_endpoint_prefer_vpc      = true
-cr_enable_internet_acl_service       = false
-cr_internet_acl_entries              = []
+cr_registry_endpoint_prefer_vpc        = true
+cr_enable_internet_acl_service         = false
+cr_internet_acl_entries                = []
+# If internet ACL is enabled, whitelist your push egress IP/CIDR in same file:
+# cr_enable_internet_acl_service = true
+# cr_internet_acl_entries        = ["203.0.113.10/32"]
 
-# Optional: set true only after AliyunCSManagedAutoScalerRole has been authorized in RAM
-ack_enable_nodepool_autoscaling = false
+# 150k design defaults.
+ack_enable_nodepool_autoscaling = true
+rds_category                    = "HighAvailability"
+rds_readonly_enabled            = true
+rds_instance_storage_gb         = 512
+rds_readonly_commodity_code     = null
+nas_storage_type                = "Performance"
+nas_file_system_type            = "standard"
 
-# Optional node pool size overrides for small-HA baseline.
+# Explicit nodepool targets for 150k baseline.
 ack_node_pool_size_overrides = {
-  app = {
-    desired_size = 2
-    min_size     = 2
-  }
-  pgbouncer = {
-    desired_size = 2
-    min_size     = 2
-  }
-  redis = {
+  system = {
     desired_size = 3
     min_size     = 3
+    max_size     = 6
+  }
+  app = {
+    desired_size = 12
+    min_size     = 8
+    max_size     = 80
+  }
+  jobs = {
+    desired_size = 3
+    min_size     = 2
+    max_size     = 20
+  }
+  redis = {
+    desired_size = 6
+    min_size     = 4
+    max_size     = 24
+  }
+  pgbouncer = {
+    desired_size = 8
+    min_size     = 4
+    max_size     = 24
   }
 }
 
-# Optional: set to false if readonly commodity fails in your account/zone.
-# Note: readonly is not supported when rds_category="Basic".
-rds_readonly_enabled = false
-rds_readonly_commodity_code = null
-rds_category         = "Basic"
-
-# Production-load profile (example only, not default bootstrap).
-# Use after baseline is stable and AliyunCSManagedAutoScalerRole is authorized.
-#
-# ack_enable_nodepool_autoscaling = true
-# rds_readonly_enabled            = true
-# moodle_ssl_proxy               = "false" # set "true" only behind HTTPS reverse proxy/LB.
-# ack_node_pool_size_overrides = {
-#   app = {
-#     desired_size = 4
-#     min_size     = 2
-#     max_size     = 20
-#   }
-#   pgbouncer = {
-#     desired_size = 3
-#     min_size     = 2
-#     max_size     = 20
-#   }
-#   redis = {
-#     desired_size = 3
-#     min_size     = 3
-#     max_size     = 12
-#   }
-# }
-
 # ObjectFS S3-compatible defaults
-objectfs_s3_enabled       = false
-objectfs_s3_bucket_name   = null
-objectfs_s3_region        = null
-objectfs_s3_base_url      = null
-objectfs_s3_key_prefix    = "objectfs/"
-objectfs_s3_use_sdk_creds = false
-objectfs_s3_create_ram_credentials = false
-# Optional: when SDK credentials are unavailable, inject static S3-compatible AK/SK via TF_VAR
+objectfs_s3_enabled                = true
+objectfs_s3_bucket_name            = null
+objectfs_s3_region                 = null
+objectfs_s3_base_url               = null
+objectfs_s3_key_prefix             = "objectfs/"
+objectfs_s3_use_sdk_creds          = false
+objectfs_s3_create_ram_credentials = true
+# Optional: inject static S3-compatible AK/SK via TF_VAR when SDK credentials are unavailable.
 # TF_VAR_objectfs_s3_access_key="<access-key>"
 # TF_VAR_objectfs_s3_secret="<secret-key>"
 objectfs_s3_ram_user_name = null

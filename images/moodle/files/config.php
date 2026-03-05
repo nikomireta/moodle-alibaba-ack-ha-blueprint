@@ -54,6 +54,7 @@ if ('$OBJECTFS_S3_ENABLED' === '1') {
 
 $CFG->directorypermissions = 02777;
 $CFG->sslproxy = $SSL_PROXY;
+#$CFG->tool_generator_users_password = 'moodle';
 
 $CFG->session_handler_class = '\cachestore_rediscluster\session';
 $CFG->session_rediscluster = [

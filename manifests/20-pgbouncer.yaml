@@ -6,7 +6,7 @@ metadata:
   labels:
     app: pgbouncer
 spec:
-  replicas: 2
+  replicas: ${PGBOUNCER_RW_REPLICAS}
   selector:
     matchLabels:
       app: pgbouncer
@@ -51,11 +51,11 @@ spec:
                 name: pgbouncer-config
           resources:
             requests:
-              cpu: 500m
-              memory: 512Mi
+              cpu: ${PGBOUNCER_CPU_REQUEST}
+              memory: ${PGBOUNCER_MEM_REQUEST}
             limits:
-              cpu: 1000m
-              memory: 1Gi
+              cpu: ${PGBOUNCER_CPU_LIMIT}
+              memory: ${PGBOUNCER_MEM_LIMIT}
           livenessProbe:
             tcpSocket:
               port: 5432
@@ -90,7 +90,7 @@ metadata:
   labels:
     app: pgbouncer-read
 spec:
-  replicas: 2
+  replicas: ${PGBOUNCER_RO_REPLICAS}
   selector:
     matchLabels:
       app: pgbouncer-read
@@ -135,11 +135,11 @@ spec:
                 name: pgbouncer-config-read-replica
           resources:
             requests:
-              cpu: 500m
-              memory: 512Mi
+              cpu: ${PGBOUNCER_CPU_REQUEST}
+              memory: ${PGBOUNCER_MEM_REQUEST}
             limits:
-              cpu: 1000m
-              memory: 1Gi
+              cpu: ${PGBOUNCER_CPU_LIMIT}
+              memory: ${PGBOUNCER_MEM_LIMIT}
           livenessProbe:
             tcpSocket:
               port: 5432

@@ -26,8 +26,6 @@ locals {
     var.common_tags
   )
 
-  settings = var.environment_configuration[var.moodle_environment]
-
   selected_zone_id = coalesce(var.availability_zone_id, data.alicloud_zones.available.zones[0].id)
 
   ack_kubeconfig         = try(yamldecode(data.alicloud_cs_cluster_credential.ack.kube_config), {})

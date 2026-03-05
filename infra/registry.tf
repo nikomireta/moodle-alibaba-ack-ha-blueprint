@@ -13,8 +13,15 @@ locals {
     local.cr_registry_public_endpoint != null ? local.cr_registry_public_endpoint : local.cr_registry_vpc_endpoint
   )
 
-  cr_registry_has_any_vpc_link = var.cr_enabled && var.cr_link_ack_vpc_endpoint && local.cr_use_existing_instance ? (
-    length(try(data.alicloud_cr_vpc_endpoint_linked_vpcs.registry_existing[0].vpc_endpoint_linked_vpcs, [])) > 0
+  cr_registry_existing_vpc_links = (
+    var.cr_enabled && var.cr_link_ack_vpc_endpoint && local.cr_use_existing_instance
+  ) ? try(data.alicloud_cr_vpc_endpoint_linked_vpcs.registry_existing[0].vpc_endpoint_linked_vpcs, []) : []
+
+  cr_registry_has_ack_vpc_link = var.cr_enabled && var.cr_link_ack_vpc_endpoint && local.cr_use_existing_instance ? (
+    length([
+      for link in local.cr_registry_existing_vpc_links : link
+      if try(link.vpc_id, "") == alicloud_vpc.main.id
+    ]) > 0
   ) : false
 }
 
@@ -60,7 +67,9 @@ data "alicloud_cr_vpc_endpoint_linked_vpcs" "registry_existing" {
 }
 
 resource "alicloud_cr_vpc_endpoint_linked_vpc" "ack_registry" {
-  count = var.cr_enabled && var.cr_link_ack_vpc_endpoint && (!local.cr_use_existing_instance || !local.cr_registry_has_any_vpc_link) ? 1 : 0
+  # Keep count plan-time deterministic: VPC ID is unknown on first plan, so
+  # deduping against existing links cannot be used in count expressions.
+  count = var.cr_enabled && var.cr_link_ack_vpc_endpoint ? 1 : 0
 
   instance_id                      = local.cr_instance_id
   vpc_id                           = alicloud_vpc.main.id

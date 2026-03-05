@@ -8,7 +8,7 @@ resource "random_password" "ack_node_login" {
 }
 
 locals {
-  ack_node_pools_base = lookup(local.settings, "ack_node_pools", {})
+  ack_node_pools_base = var.ack_node_pools
   ack_node_pools = {
     for pool_name, pool in local.ack_node_pools_base :
     pool_name => merge(pool, try(var.ack_node_pool_size_overrides[pool_name], {}))

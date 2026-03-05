@@ -77,7 +77,6 @@ resource "kubernetes_secret" "moodle_config" {
     REDIS_CACHE_HOST       = var.redis_cache_host
     REDIS_CACHE_PORT       = var.redis_cache_port
     MUC_AUTOCONFIG_ENABLED = var.moodle_muc_autoconfig_enabled ? "1" : "0"
-    MUC_PROFILE            = var.moodle_muc_profile
 
     DATABASE_HOST      = "pgbouncer-svc"
     DATABASE_HOST_READ = "pgbouncer-read-svc"

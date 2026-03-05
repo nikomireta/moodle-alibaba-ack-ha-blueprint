@@ -62,12 +62,6 @@ function upsert_definition_mapping(array &$configuration, string $definition, ar
     $configuration['definitionmappings'] = array_values($filtered);
 }
 
-$profile = trim((string)(getenv('MUC_PROFILE') ?: 'azure_parity_core'));
-if ($profile !== 'azure_parity_core') {
-    stdout("Skip MUC auto-config for profile: {$profile}");
-    exit(0);
-}
-
 $redisHost = trim((string)(getenv('REDIS_CACHE_HOST') ?: ''));
 $redisPort = trim((string)(getenv('REDIS_CACHE_PORT') ?: ''));
 if ($redisHost === '' || $redisPort === '') {
@@ -84,17 +78,6 @@ if (!is_dir($mucDir) && !mkdir($mucDir, 0775, true) && !is_dir($mucDir)) {
 }
 
 $configuration = [];
-if (is_file($mucConfigPath)) {
-    if (!defined('MOODLE_INTERNAL')) {
-        define('MOODLE_INTERNAL', true);
-    }
-
-    include $mucConfigPath;
-}
-
-if (!is_array($configuration)) {
-    $configuration = [];
-}
 
 if (!isset($configuration['stores']) || !is_array($configuration['stores'])) {
     $configuration['stores'] = [];
@@ -219,13 +202,20 @@ upsert_definition_mapping($configuration, 'core/coursemodinfo', ['file-cache']);
 $payload = "<?php defined('MOODLE_INTERNAL') || die();\n";
 $payload .= '$configuration = ' . var_export($configuration, true) . ";\n";
 
-if (file_put_contents($mucConfigPath, $payload, LOCK_EX) === false) {
-    stderr("Failed to write file: {$mucConfigPath}");
+$tempPath = $mucConfigPath . '.tmp.' . getmypid();
+if (file_put_contents($tempPath, $payload) === false) {
+    stderr("Failed to write temporary file: {$tempPath}");
+    exit(1);
+}
+
+if (!@rename($tempPath, $mucConfigPath)) {
+    @unlink($tempPath);
+    stderr("Failed to move temporary file into place: {$mucConfigPath}");
     exit(1);
 }
 
 @chown($mucConfigPath, 'www-data');
 @chgrp($mucConfigPath, 'www-data');
 
-stdout('MUC cache configuration applied (profile=azure_parity_core).');
+stdout('MUC cache configuration applied.');
 exit(0);

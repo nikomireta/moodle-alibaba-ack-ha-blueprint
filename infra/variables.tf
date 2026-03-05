@@ -24,8 +24,8 @@ variable "rds_availability_zone_id" {
 
 variable "moodle_environment" {
   type        = string
-  description = "Environment profile key."
-  default     = "development"
+  description = "Environment label used in naming and tags."
+  default     = "production"
 
   validation {
     condition     = contains(["development", "production"], var.moodle_environment)
@@ -71,7 +71,7 @@ variable "ack_cluster_spec" {
 
 variable "ack_cluster_profile" {
   type        = string
-  description = "ACK profile."
+  description = "ACK API profile field for cluster creation (provider-level setting, not a template sizing mode)."
   default     = "Default"
 }
 
@@ -149,8 +149,8 @@ variable "ack_instance_type_fallback_max_count" {
 
 variable "ack_enable_nodepool_autoscaling" {
   type        = bool
-  description = "Enable node pool autoscaling blocks. Keep false for first-run unless AliyunCSManagedAutoScalerRole is already authorized."
-  default     = false
+  description = "Enable node pool autoscaling blocks. Disable only if AliyunCSManagedAutoScalerRole is not authorized yet."
+  default     = true
 }
 
 variable "ack_node_pool_size_overrides" {
@@ -178,243 +178,118 @@ variable "ack_cluster_addons" {
   ]
 }
 
-variable "environment_configuration" {
+variable "ack_node_pools" {
   type        = map(any)
-  description = "Environment-specific sizing for ACK and RDS."
+  description = "ACK node pool sizing and scheduling defaults for the 150k design baseline."
 
   default = {
-    development = {
-      ack_node_pools = {
-        system = {
-          instance_types       = ["ecs.g6.xlarge", "ecs.c6.xlarge", "ecs.g7.xlarge", "ecs.c7.xlarge", "ecs.g6.2xlarge", "ecs.c6.2xlarge"]
-          min_cpu_core_count   = 2
-          min_memory_size_gb   = 4
-          desired_size         = 1
-          min_size             = 1
-          max_size             = 4
-          enable_autoscaling   = true
-          scaling_type         = "cpu"
-          system_disk_category = "cloud_essd"
-          system_disk_size     = 120
-          labels = {
-            role = "system"
-          }
-          taints = []
-        }
-
-        app = {
-          instance_types       = ["ecs.c6.xlarge", "ecs.g6.xlarge", "ecs.c7.xlarge", "ecs.g7.xlarge", "ecs.c6.2xlarge"]
-          min_cpu_core_count   = 4
-          min_memory_size_gb   = 8
-          desired_size         = 2
-          min_size             = 2
-          max_size             = 20
-          enable_autoscaling   = true
-          scaling_type         = "cpu"
-          system_disk_category = "cloud_essd"
-          system_disk_size     = 120
-          labels = {
-            workload = "app"
-          }
-          taints = [
-            {
-              key    = "workload-type"
-              value  = "app"
-              effect = "NoSchedule"
-            }
-          ]
-        }
-
-        jobs = {
-          instance_types       = ["ecs.c6.large", "ecs.g6.large", "ecs.c6.xlarge", "ecs.g6.xlarge", "ecs.c7.large", "ecs.g7.large"]
-          min_cpu_core_count   = 2
-          min_memory_size_gb   = 4
-          desired_size         = 1
-          min_size             = 1
-          max_size             = 10
-          enable_autoscaling   = true
-          scaling_type         = "cpu"
-          system_disk_category = "cloud_essd"
-          system_disk_size     = 120
-          labels = {
-            workload = "jobs"
-          }
-          taints = [
-            {
-              key    = "workload-type"
-              value  = "jobs"
-              effect = "NoSchedule"
-            }
-          ]
-        }
-
-        redis = {
-          instance_types       = ["ecs.r6.xlarge", "ecs.g6.xlarge", "ecs.r6.2xlarge", "ecs.g7.xlarge"]
-          min_cpu_core_count   = 4
-          min_memory_size_gb   = 8
-          desired_size         = 3
-          min_size             = 3
-          max_size             = 10
-          enable_autoscaling   = true
-          scaling_type         = "cpu"
-          system_disk_category = "cloud_essd"
-          system_disk_size     = 120
-          labels = {
-            workload = "redis"
-          }
-          taints = [
-            {
-              key    = "workload-type"
-              value  = "redis"
-              effect = "NoSchedule"
-            }
-          ]
-        }
-
-        pgbouncer = {
-          instance_types       = ["ecs.g6.large", "ecs.c6.large", "ecs.g6.xlarge", "ecs.c6.xlarge", "ecs.g7.large", "ecs.c7.large"]
-          min_cpu_core_count   = 2
-          min_memory_size_gb   = 4
-          desired_size         = 2
-          min_size             = 2
-          max_size             = 10
-          enable_autoscaling   = true
-          scaling_type         = "cpu"
-          system_disk_category = "cloud_essd"
-          system_disk_size     = 120
-          labels = {
-            workload = "pgbouncer"
-          }
-          taints = [
-            {
-              key    = "workload-type"
-              value  = "pgbouncer"
-              effect = "NoSchedule"
-            }
-          ]
-        }
+    system = {
+      instance_types       = ["ecs.g6.xlarge", "ecs.c6.xlarge", "ecs.g7.xlarge", "ecs.c7.xlarge", "ecs.g6.2xlarge"]
+      min_cpu_core_count   = 4
+      min_memory_size_gb   = 8
+      desired_size         = 3
+      min_size             = 3
+      max_size             = 6
+      enable_autoscaling   = true
+      scaling_type         = "cpu"
+      system_disk_category = "cloud_essd"
+      system_disk_size     = 200
+      labels = {
+        role = "system"
       }
-
-      rds_instance_storage_gb          = 32
-      rds_readonly_instance_storage_gb = null
-      rds_readonly_enabled             = false
+      taints = []
     }
 
-    production = {
-      ack_node_pools = {
-        system = {
-          instance_types       = ["ecs.g6.xlarge", "ecs.c6.xlarge", "ecs.g7.xlarge", "ecs.c7.xlarge", "ecs.g6.2xlarge"]
-          min_cpu_core_count   = 4
-          min_memory_size_gb   = 8
-          desired_size         = 3
-          min_size             = 3
-          max_size             = 6
-          enable_autoscaling   = true
-          scaling_type         = "cpu"
-          system_disk_category = "cloud_essd"
-          system_disk_size     = 200
-          labels = {
-            role = "system"
-          }
-          taints = []
-        }
-
-        app = {
-          instance_types       = ["ecs.c6.2xlarge", "ecs.g6.2xlarge", "ecs.c7.2xlarge", "ecs.g7.2xlarge"]
-          min_cpu_core_count   = 8
-          min_memory_size_gb   = 16
-          desired_size         = 4
-          min_size             = 2
-          max_size             = 60
-          enable_autoscaling   = true
-          scaling_type         = "cpu"
-          system_disk_category = "cloud_essd"
-          system_disk_size     = 200
-          labels = {
-            workload = "app"
-          }
-          taints = [
-            {
-              key    = "workload-type"
-              value  = "app"
-              effect = "NoSchedule"
-            }
-          ]
-        }
-
-        jobs = {
-          instance_types       = ["ecs.c6.xlarge", "ecs.g6.xlarge", "ecs.c7.xlarge", "ecs.g7.xlarge"]
-          min_cpu_core_count   = 4
-          min_memory_size_gb   = 8
-          desired_size         = 2
-          min_size             = 1
-          max_size             = 20
-          enable_autoscaling   = true
-          scaling_type         = "cpu"
-          system_disk_category = "cloud_essd"
-          system_disk_size     = 200
-          labels = {
-            workload = "jobs"
-          }
-          taints = [
-            {
-              key    = "workload-type"
-              value  = "jobs"
-              effect = "NoSchedule"
-            }
-          ]
-        }
-
-        redis = {
-          instance_types       = ["ecs.r6.2xlarge", "ecs.g6.2xlarge", "ecs.r7.2xlarge", "ecs.g7.2xlarge"]
-          min_cpu_core_count   = 8
-          min_memory_size_gb   = 32
-          desired_size         = 3
-          min_size             = 3
-          max_size             = 20
-          enable_autoscaling   = true
-          scaling_type         = "cpu"
-          system_disk_category = "cloud_essd"
-          system_disk_size     = 200
-          labels = {
-            workload = "redis"
-          }
-          taints = [
-            {
-              key    = "workload-type"
-              value  = "redis"
-              effect = "NoSchedule"
-            }
-          ]
-        }
-
-        pgbouncer = {
-          instance_types       = ["ecs.g6.2xlarge", "ecs.c6.2xlarge", "ecs.g7.2xlarge", "ecs.c7.2xlarge"]
-          min_cpu_core_count   = 8
-          min_memory_size_gb   = 16
-          desired_size         = 3
-          min_size             = 2
-          max_size             = 20
-          enable_autoscaling   = true
-          scaling_type         = "cpu"
-          system_disk_category = "cloud_essd"
-          system_disk_size     = 200
-          labels = {
-            workload = "pgbouncer"
-          }
-          taints = [
-            {
-              key    = "workload-type"
-              value  = "pgbouncer"
-              effect = "NoSchedule"
-            }
-          ]
-        }
+    app = {
+      instance_types       = ["ecs.c6.2xlarge", "ecs.g6.2xlarge", "ecs.c7.2xlarge", "ecs.g7.2xlarge"]
+      min_cpu_core_count   = 8
+      min_memory_size_gb   = 16
+      desired_size         = 12
+      min_size             = 8
+      max_size             = 80
+      enable_autoscaling   = true
+      scaling_type         = "cpu"
+      system_disk_category = "cloud_essd"
+      system_disk_size     = 200
+      labels = {
+        workload = "app"
       }
+      taints = [
+        {
+          key    = "workload-type"
+          value  = "app"
+          effect = "NoSchedule"
+        }
+      ]
+    }
 
-      rds_instance_storage_gb          = 512
-      rds_readonly_instance_storage_gb = null
-      rds_readonly_enabled             = true
+    jobs = {
+      instance_types       = ["ecs.c6.xlarge", "ecs.g6.xlarge", "ecs.c7.xlarge", "ecs.g7.xlarge"]
+      min_cpu_core_count   = 4
+      min_memory_size_gb   = 8
+      desired_size         = 3
+      min_size             = 2
+      max_size             = 20
+      enable_autoscaling   = true
+      scaling_type         = "cpu"
+      system_disk_category = "cloud_essd"
+      system_disk_size     = 200
+      labels = {
+        workload = "jobs"
+      }
+      taints = [
+        {
+          key    = "workload-type"
+          value  = "jobs"
+          effect = "NoSchedule"
+        }
+      ]
+    }
+
+    redis = {
+      instance_types       = ["ecs.r6.2xlarge", "ecs.g6.2xlarge", "ecs.r7.2xlarge", "ecs.g7.2xlarge"]
+      min_cpu_core_count   = 8
+      min_memory_size_gb   = 32
+      desired_size         = 6
+      min_size             = 4
+      max_size             = 24
+      enable_autoscaling   = true
+      scaling_type         = "cpu"
+      system_disk_category = "cloud_essd"
+      system_disk_size     = 200
+      labels = {
+        workload = "redis"
+      }
+      taints = [
+        {
+          key    = "workload-type"
+          value  = "redis"
+          effect = "NoSchedule"
+        }
+      ]
+    }
+
+    pgbouncer = {
+      instance_types       = ["ecs.g6.2xlarge", "ecs.c6.2xlarge", "ecs.g7.2xlarge", "ecs.c7.2xlarge"]
+      min_cpu_core_count   = 8
+      min_memory_size_gb   = 16
+      desired_size         = 8
+      min_size             = 4
+      max_size             = 24
+      enable_autoscaling   = true
+      scaling_type         = "cpu"
+      system_disk_category = "cloud_essd"
+      system_disk_size     = 200
+      labels = {
+        workload = "pgbouncer"
+      }
+      taints = [
+        {
+          key    = "workload-type"
+          value  = "pgbouncer"
+          effect = "NoSchedule"
+        }
+      ]
     }
   }
 }
@@ -428,7 +303,7 @@ variable "rds_pg_version" {
 variable "rds_category" {
   type        = string
   description = "RDS edition category."
-  default     = "Basic"
+  default     = "HighAvailability"
 }
 
 variable "rds_instance_charge_type" {
@@ -457,8 +332,8 @@ variable "rds_readonly_instance_type" {
 
 variable "rds_instance_storage_gb" {
   type        = number
-  description = "Optional explicit RDS primary storage size in GB."
-  default     = null
+  description = "RDS primary storage size in GB."
+  default     = 512
 }
 
 variable "rds_readonly_instance_storage_gb" {
@@ -470,7 +345,7 @@ variable "rds_readonly_instance_storage_gb" {
 variable "rds_readonly_enabled" {
   type        = bool
   description = "Create RDS readonly instance."
-  default     = false
+  default     = true
 }
 
 variable "rds_readonly_commodity_code" {
@@ -541,8 +416,8 @@ variable "oss_force_destroy" {
 
 variable "nas_storage_type" {
   type        = string
-  description = "NAS storage type."
-  default     = "Capacity"
+  description = "NAS storage type (default tuned for higher metadata/IO performance)."
+  default     = "Performance"
 }
 
 variable "nas_file_system_type" {
@@ -578,7 +453,7 @@ variable "nas_access_rule_priority" {
 variable "objectfs_s3_enabled" {
   type        = bool
   description = "Enable ObjectFS S3-compatible runtime configuration."
-  default     = false
+  default     = true
 }
 
 variable "objectfs_s3_bucket_name" {
@@ -614,7 +489,7 @@ variable "objectfs_s3_use_sdk_creds" {
 variable "objectfs_s3_create_ram_credentials" {
   type        = bool
   description = "Create dedicated RAM user/policy/access key for ObjectFS when SDK creds are disabled and static credentials are not provided."
-  default     = false
+  default     = true
 }
 
 variable "objectfs_s3_access_key" {
@@ -784,17 +659,6 @@ variable "moodle_muc_autoconfig_enabled" {
   type        = bool
   description = "Enable automatic MUC cache store and mapping bootstrap on container startup."
   default     = true
-}
-
-variable "moodle_muc_profile" {
-  type        = string
-  description = "MUC bootstrap profile applied by runtime auto-configuration script."
-  default     = "azure_parity_core"
-
-  validation {
-    condition     = contains(["azure_parity_core"], var.moodle_muc_profile)
-    error_message = "moodle_muc_profile must be one of: azure_parity_core."
-  }
 }
 
 variable "pgbouncer_max_client_conn" {

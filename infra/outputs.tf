@@ -150,6 +150,11 @@ output "cr_existing_vpc_link_count" {
   value       = try(length(data.alicloud_cr_vpc_endpoint_linked_vpcs.registry_existing[0].vpc_endpoint_linked_vpcs), 0)
 }
 
+output "cr_existing_ack_vpc_link_count" {
+  description = "Number of existing ACR Registry VPC links matching the stack VPC."
+  value       = length(local.cr_registry_has_ack_vpc_link ? [1] : [])
+}
+
 output "moodle_www_root_configured" {
   description = "Configured Moodle public URL in runtime secret."
   value       = var.moodle_www_root
